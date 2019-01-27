@@ -7,6 +7,7 @@ var autoprefixer = require('gulp-autoprefixer');
 var plumber = require('gulp-plumber');
 var sourcemaps = require('gulp-sourcemaps');
 var sass = require('gulp-sass');
+var babel = require('gulp-babel');
 
 // Less plugins
 var less = require('gulp-less');
@@ -15,10 +16,17 @@ var lessAutoprefix = new LessAutoprefix({
 	browsers: ['last 2 versions']
 });
 
+// Handlebars plugins
+var handlebars = require('gulp-handlebars');
+var handlebarsLib = require('handlebars');
+var declare = require('gulp-declare');
+var wrap = require('gulp-wrap');
+
 // File paths
 var DIST_PATH = 'public/dist';
 var SCRIPTS_PATH = 'public/scripts/**/*.js';
 var CSS_PATH = 'public/css/**/*.css';
+var TEMPLATES_PATH = 'templates/**/*.hbs';
 
 // // Styles
 // gulp.task('styles', function () {
@@ -81,7 +89,18 @@ gulp.task('scripts', function () {
 	console.log('starting scripts task');
 
 	return gulp.src(SCRIPTS_PATH)
+		.pipe(plumber(function (err) {
+			console.log('Scripts Task Error');
+			console.log(err);
+			this.emit('end');
+		}))
+		.pipe(sourcemaps.init())
+		.pipe(babel({
+			presets: ['@babel/env']
+		}))
 		.pipe(uglify())
+		.pipe(concat('scripts.js'))
+		.pipe(sourcemaps.write())
 		.pipe(gulp.dest(DIST_PATH))
 		.pipe(livereload());
 });
@@ -89,6 +108,21 @@ gulp.task('scripts', function () {
 // Images
 gulp.task('images', function () {
 	console.log('starting images task');
+});
+
+gulp.task('templates', function () {
+	return gulp.src(TEMPLATES_PATH)
+		.pipe(handlebars({
+			handlebars: handlebarsLib
+		}))
+		.pipe(wrap('Handlebars.template(<%= contents %>)'))
+		.pipe(declare({
+			namespace: 'templates',
+			noRedeclare: true
+		}))
+		.pipe(concat('templates.js'))
+		.pipe(gulp.dest(DIST_PATH))
+		.pipe(livereload());
 });
 
 gulp.task('default', function () {
@@ -103,4 +137,5 @@ gulp.task('watch', function () {
 	// gulp.watch(CSS_PATH, gulp.series('styles'));
 	// gulp.watch('public/scss/**/*.scss', gulp.series('styles'));
 	gulp.watch('public/less/**/*.less', gulp.series('styles'));
+	gulp.watch(TEMPLATES_PATH, gulp.series('templates'));
 });
